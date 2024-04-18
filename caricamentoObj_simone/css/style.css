@@ -1,0 +1,8 @@
+*{
+    margin: 0;
+}
+
+canvas{
+    width: 600px;
+    height: 600px;
+}

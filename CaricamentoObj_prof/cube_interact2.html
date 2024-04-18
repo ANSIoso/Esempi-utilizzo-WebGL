@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+  <head>
+      <!--per ricaricare sempre la pagina da zero e non usare la cache-->
+      <META HTTP-EQUIV=”Pragma” CONTENT=”no-cache”>
+      <META HTTP-EQUIV=”Cache-Control” CONTENT=”no-cache”>
+      <!--per definire la dimensione e posizione dell'elemento canvas;
+        se i valori di width ed height inpostati qui sono superiori a
+        corrispondenti settati in <canvas width= .. height=.. l'immagine
+        verra' adattata ingrandendola, mentre se i valori sono inferiori,
+        l'immagine verra' adattata rimpicciolendola-->
+      <style>
+        body {
+            background: #dddddd;
+        }
+        #my_Canvas {
+            margin: 10px;
+            padding: 10px;
+            background: #ffffff;
+            border: thin inset #aaaaaa;
+        }
+        .container {  /*to manage text on canvas and webgl */
+          position: relative;
+        }
+        #text { /*to manage text on canvas and webgl */
+          background-color: transparent;  /* needed because we setcanvas bg color to white */
+          position: absolute;
+          left: 100px;
+          top: 10px;
+          z-index: 10;
+        }
+    </style>
+   </head>
+
+<body>
+  <p> </p>
+  <button id = "Button1">Increase D</button>
+  <button id = "Button2">Decrease D</button>
+  <button id = "Button3">Increase Zm</button>
+  <button id = "Button4">Decrease Zm</button>
+  <button id = "Button5">Increase fov</button>
+  <button id = "Button6">Decrease fov</button>
+  <button id = "Button7">Rotate cube</button>
+  <p> </p>
+
+<div class="container"> 
+  <!-- to manage text on canvas and webgl -->
+  <canvas width="500" height="500" id="my_Canvas"></canvas>
+  <canvas width="500" height="150" id="text"></canvas>
+</div>
+
+<script id="vertex-shader" type="not-javascript">
+attribute vec3 position;
+uniform mat4 Pmatrix; 
+uniform mat4 Vmatrix;
+uniform mat4 Mmatrix;
+attribute vec3 color;//the color of the point 
+varying vec3 vColor;
+void main(void) { //pre-built function
+  gl_Position = Pmatrix*Vmatrix*Mmatrix*vec4(position, 1.);
+  vColor=color;
+}
+</script>
+
+<script id="fragment-shader" type="not-javascript">
+precision mediump float; 
+varying vec3 vColor;
+void main(void) {
+  gl_FragColor = vec4(vColor, 1.);
+}
+</script>
+
+<script type="text/javascript" src="resources/webgl-utils.js"></script>
+<script type="text/javascript" src="resources/m4.js"></script>
+<script type="text/javascript" src="cube_interact2.js"></script>
+</body>
+</html>  
