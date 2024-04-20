@@ -31,15 +31,12 @@
          };
          image.src = path + fileName;
       }
-
       return texture;
       
       function isPowerOf2(value) {
          return (value & (value - 1)) == 0;
       }
    }
-
-
    
 //Funzione che utilizza la libreria glm_utils per leggere un eventuale 
 //file MTL associato alla mesh
@@ -95,20 +92,14 @@
 
 /*========== Loading and storing the geometry ==========*/
    function LoadMesh(gl,mesh) {
-      positions = [];
-      normals = [];
-      texcoords = []
 
       retrieveDataFromSource(mesh);
       Unitize(mesh.data);
-      
-      //Ora che ho la mesh e il/i materiali associati, mi occupo di caricare 
-      //la/le texture che tali materiali contengono
-
+  //Ora che ho la mesh e il/i materiali associati, mi occupo di caricare 
+  //la/le texture che tali materiali contengono
       var map = mesh.materials[1].parameter;
       var path = mesh.sourceMesh.substring(0, mesh.sourceMesh.lastIndexOf("/")+1);
       map.set("map_Kd", loadTexture(gl, path, map.get("map_Kd")));
-
 
      var x=[], y=[], z=[];
      var xt=[], yt=[];

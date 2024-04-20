@@ -1,56 +1,10 @@
-var canvas;
-var gl;
+"use strict";
 
 var mesh = new Array();
-
-var program;
-var attribSetters;
-var uniformSetters;
-
-// === obj "variables" ===
-var arrays = {
-  position:   { numComponents: 3, data: null, },
-  texcoord:   { numComponents: 2, data: null, },
-  normal:     { numComponents: 3, data: null, },
-};
-
-// buffer per attributi
-var bufferInfo;
-var loadedModelArray = [];
-
-var ambientLight =[0.2,0.2,0.2];
-var colorLight =[1.0,1.0,1.0];
-var lightPosition = m4.normalize([-1, 3, 5]);
-
-var uniformsForAll = {
-  u_lightDirection:   lightPosition,
-  u_ambientLight:     ambientLight,
-  u_colorLight:       colorLight,
-  u_view:             [0, 0, 0, 0],
-  u_projection:       [0, 0, 0, 0],
-  u_viewWorldPosition:[0, 0, 0],
-}
-
-var uniformsForEach = {
-  diffuse: [0, 0, 0],
-  //diffuseMap: 0,
-  ambient: [0, 0, 0],
-  specular: [0, 0, 0],
-  emissive: [0, 0, 0],
-  shininess: 0,
-  opacity: 0,
-  u_world: [0, 0, 0, 0],
-};
-var modelUniformArray = [];
-var actualModelUniform;
-
-
-// attributes
 var positions = [];
 var normals = [];
 var texcoords = [];
-
-// uniforms
+var numVertices;
 var ambient;   //Ka
 var diffuse;   //Kd
 var specular;  //Ks
@@ -58,93 +12,105 @@ var emissive;  //Ke
 var shininess; //Ns
 var opacity;   //Ni
 
-// immagini =============== togliere
-
-const imageGatto = new Image();
-imageGatto.src = "data/cat/Cat_diffuse.jpg";
-const imageRuota = new Image();
-imageRuota.src = "data/ruota/ruota_diffuse_giulio.png";
-
-// immagini =============== togliere
-
-var texture;
-
-function setUpTextureBuffer(){
-  texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-}
-
-
-function loadTexture1(gl, img) {
-  const level = 0;
-  const internalFormat = gl.RGBA;
-  const width = 1;
-  const height = 1;
-  const border = 0;
-  const srcFormat = gl.RGBA;
-  const srcType = gl.UNSIGNED_BYTE;
-  const pixel = new Uint8Array([255, 255, 255, 255]);  // opaque blue
-  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-           width, height, border, srcFormat, srcType, pixel);
-
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,srcFormat, srcType, img);
-
-  if (isPowerOf2(img.width) && isPowerOf2(img.height)) 
-      gl.generateMipmap(gl.TEXTURE_2D); // Yes, it's a power of 2. Generate mips.
-  else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  }
-  
-  function isPowerOf2(value) {
-     return (value & (value - 1)) == 0;
-  }
-}
-
-function init(){
-  canvas = document.getElementById("canvas");
-  gl = canvas.getContext("webgl");
-
-  setUpTextureBuffer();
-
-  if(!canvas || !gl){
-    console.log(`Stato caricamento: \n\tcanvas:\t${canvas} \n\twebgl:\t${gl}`);
+function main() {
+  // Get A WebGL context
+  /** @type {HTMLCanvasElement} */
+  var canvas = document.getElementById("canvas");
+  var gl = canvas.getContext("webgl");
+  if (!gl) {
     return;
-  } 
+  }
 
-  // mesh.sourceMesh='data/cat/12221_Cat_v1_l3.obj';
-  // mesh.sourceMesh='data/cat/12221_Cat_v1_l3.obj';
-  // mesh.sourceMesh='data/omo.obj';
-  // mesh.sourceMesh='data/cube/cube.obj';
-  // mesh.sourceMesh='data/chair/chair.obj';
-  // mesh.sourceMesh='data/boeing/boeing_3.obj';
+  mesh.sourceMesh='data/cube/cube.obj';
+  //mesh.sourceMesh='data/chair/chair.obj';
+  //mesh.sourceMesh='data/boeing/boeing_3.obj';
   //mesh.sourceMesh='data/soccerball/soccerball.obj';
-  // mesh.sourceMesh='data/ruota/ruota_davanti_origine.obj';
+  //mesh.sourceMesh='data/ruota/ruota_davanti_origine.obj';
   //mesh.sourceMesh='data/ruota/ruota_davanti_gomma.obj';
+  LoadMesh(gl,mesh);
+  //console.log(mesh);
 
   // setup GLSL program
-  program = webglUtils.createProgramFromScripts(gl, ["3d-vertex-shader", "3d-fragment-shader"]);
-  attribSetters  = webglUtils.createAttributeSetters(gl, program);
-  uniformSetters = webglUtils.createUniformSetters(gl, program);
+  var program = webglUtils.createProgramFromScripts(gl, ["3d-vertex-shader", "3d-fragment-shader"]);
+  // Tell it to use our program (pair of shaders)
+  gl.useProgram(program);
 
-  gl.useProgram(program); 
-}
+  // look up where the vertex data needs to go.
+  var positionLocation = gl.getAttribLocation(program, "a_position");
+  var normalLocation = gl.getAttribLocation(program, "a_normal");
+  var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
 
-// ===== impostazioni della camera =====
-function settingCamera(){
-  var fieldOfViewRadians = degToRad(60);
+  // Create a buffer for positions
+  var positionBuffer = gl.createBuffer();
+  // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  // Put the positions in the buffer
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+  // Create a buffer for normals
+  var normalsBuffer = gl.createBuffer();
+  // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER mormalsBuffer)
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalsBuffer);
+  // Put the normals in the buffer
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+
+  // provide texture coordinates
+  var texcoordBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+  // Set Texcoords
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
+
+  var ambientLight=[0.2,0.2,0.2];
+  var colorLight=[1.0,1.0,1.0];
+
+  gl.uniform3fv(gl.getUniformLocation(program, "diffuse" ), diffuse );
+  gl.uniform3fv(gl.getUniformLocation(program, "ambient" ), ambient); 
+  gl.uniform3fv(gl.getUniformLocation(program, "specular"), specular );	
+  gl.uniform3fv(gl.getUniformLocation(program, "emissive"), emissive );
+  //gl.uniform3fv(gl.getUniformLocation(program, "u_lightDirection" ), xxx );
+  gl.uniform3fv(gl.getUniformLocation(program, "u_ambientLight" ), ambientLight );
+  gl.uniform3fv(gl.getUniformLocation(program, "u_colorLight" ), colorLight );
+
+  gl.uniform1f(gl.getUniformLocation(program, "shininess"), shininess);
+  gl.uniform1f(gl.getUniformLocation(program, "opacity"), opacity);
+
+  // Turn on the position attribute
+  gl.enableVertexAttribArray(positionLocation);
+  // Bind the position buffer.
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+  var size = 3;          // 3 components per iteration
+  var type = gl.FLOAT;   // the data is 32bit floats
+  var normalize = false; // don't normalize the data
+  var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+  var offset = 0;        // start at the beginning of the buffer
+  gl.vertexAttribPointer(positionLocation, size, type, normalize, stride, offset);
+
+  // Turn on the normal attribute
+  gl.enableVertexAttribArray(normalLocation);
+  // Bind the normal buffer.
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalsBuffer);
+  gl.vertexAttribPointer(normalLocation, size, type, normalize, stride, offset);
+
+  // Turn on the texcord attribute
+  gl.enableVertexAttribArray(texcoordLocation);
+  // Bind the position buffer.
+  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+  // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+  size = 2;          // 2 components per iteration
+  gl.vertexAttribPointer(texcoordLocation, size, type, normalize, stride, offset);
+
+  var fieldOfViewRadians = degToRad(30);
+  var modelXRotationRadians = degToRad(0);
+  var modelYRotationRadians = degToRad(0);
 
   // Compute the projection matrix
   var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  var zmin = 0.1;
-  var zfar = 2000;
-  var projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zmin, zfar);
+  //  zmin=0.125;
+  var zmin=0.1;
+  var projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zmin, 200);
 
-  var cameraPosition = [5, 1, 1];
+  var cameraPosition = [4.5, 4.5, 2];
   var up = [0, 0, 1];
   var target = [0, 0, 0];
 
@@ -154,81 +120,36 @@ function settingCamera(){
   // Make a view matrix from the camera matrix.
   var viewMatrix = m4.inverse(cameraMatrix);
 
-  uniformsForAll.u_view = viewMatrix;
-  uniformsForAll.u_projection = projectionMatrix;
+  var matrixLocation = gl.getUniformLocation(program, "u_world");
+  var textureLocation = gl.getUniformLocation(program, "diffuseMap");
+  var viewMatrixLocation = gl.getUniformLocation(program, "u_view");
+  var projectionMatrixLocation = gl.getUniformLocation(program, "u_projection");
+  var lightWorldDirectionLocation = gl.getUniformLocation(program, "u_lightDirection");
+  var viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
+
+  gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
+  gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+        
+  // set the light position
+  gl.uniform3fv(lightWorldDirectionLocation, m4.normalize([-1, 3, 5]));
 
   // set the camera/view position
-  uniformsForAll.u_viewWorldPosition = cameraPosition;
-
-
-  webglUtils.setUniforms(uniformSetters, uniformsForAll);
-}
-
-// function isPowerOf2(value) {
-//   return (value & (value - 1)) === 0;
-// }
-
-function radToDeg(r) {
-  return r * 180 / Math.PI;
-}
-
-function degToRad(d) {
-  return d * Math.PI / 180;
-}
-
-function myLoadModel(posizione){
-  mesh.sourceMesh = posizione;
-
-  LoadMesh(gl,mesh);
-  //console.log(mesh);
-  
-  arrays.position.data = positions;
-  arrays.texcoord.data = texcoords;
-  arrays.normal.data = normals;
-
-  var loadedBufferInfo = webglUtils.createBufferInfoFromArrays(gl, arrays);
-  loadedModelArray.push(loadedBufferInfo);
-
-  uniformsForEach.u_world = m4.identity();
-  uniformsForEach.diffuse   = diffuse;  //Kd
-  uniformsForEach.ambient   = ambient;  //Ka
-  uniformsForEach.specular  = specular; //Ks
-  uniformsForEach.emissive  = emissive; //Ke
-  uniformsForEach.shininess = shininess;//Ns
-  uniformsForEach.opacity   = opacity;  //Ni
-
-  modelUniformArray.push(Object.assign({}, uniformsForEach));
-}
-
-function mySetModel(m, matrix){
-  bufferInfo = loadedModelArray[m];
-  webglUtils.setBuffersAndAttributes(gl, attribSetters, bufferInfo);
-
-  // TOLTO all ue === var matrixLocation = gl.getUniformLocation(program, "u_world");
-  // TOLTO all ue === 
-  var textureLocation = gl.getUniformLocation(program, "diffuseMap");
+  gl.uniform3fv(viewWorldPositionLocation, cameraPosition);
 
   // Tell the shader to use texture unit 0 for diffuseMap
-  // TOLTO all ue === 
   gl.uniform1i(textureLocation, 0);
 
-  actualModelUniform = modelUniformArray[m];
-  actualModelUniform.u_world = matrix;
-  webglUtils.setUniforms(uniformSetters, actualModelUniform);
-}
+  function isPowerOf2(value) {
+    return (value & (value - 1)) === 0;
+  }
 
-function main() {
-  init();
+  function radToDeg(r) {
+    return r * 180 / Math.PI;
+  }
 
-  //gl.uniform3fv(gl.getUniformLocation(program, "u_lightDirection" ), xxx );
-
-  settingCamera();
-
-  var modelXRotationRadians = degToRad(0);
-  var modelYRotationRadians = degToRad(0);
-
-  myLoadModel('data/cat/12221_Cat_v1_l3.obj');
-  myLoadModel('data/ruota/ruota_davanti_gomma.obj');
+  function degToRad(d) {
+    return d * Math.PI / 180;
+  }
 
   // Get the starting time.
   var then = 0;
@@ -237,19 +158,6 @@ function main() {
 
   // Draw the scene.
   function drawScene(time) {
-    // ==== v_set up draw_v ====
-
-    // Tell WebGL how to convert from clip space to pixels
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-
-    // Clear the canvas AND the depth buffer.
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    // ==== ^_set up draw_^ ====
-
     // convert to seconds
     time *= 0.001;
     // Subtract the previous time from the current time
@@ -257,29 +165,28 @@ function main() {
     // Remember the current time for the next frame.
     then = time;
 
+    // Tell WebGL how to convert from clip space to pixels
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    //gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+
     // Animate the rotation
     modelYRotationRadians += -0.7 * deltaTime;
     modelXRotationRadians += -0.4 * deltaTime;
 
-    // =======================
-    var matrix = m4.translate(m4.identity(), 0, 1, 0)
-    matrix = m4.xRotate(matrix, modelXRotationRadians);
-    matrix = m4.yRotate(matrix, modelYRotationRadians);
-    
-    mySetModel(0, matrix);
-    loadTexture1(gl, imageGatto)
-    gl.drawArrays(gl.TRIANGLES, 0, bufferInfo.numElements);
-    // =======================
-    
-    // =======================
-    var matrix = m4.translate(m4.identity(), 0, -1, 0)
+    // Clear the canvas AND the depth buffer.
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var matrix = m4.identity();
     matrix = m4.xRotate(matrix, modelXRotationRadians);
     matrix = m4.yRotate(matrix, modelYRotationRadians);
 
-    mySetModel(1, matrix);
-    loadTexture1(gl, imageRuota)
-    gl.drawArrays(gl.TRIANGLES, 0, bufferInfo.numElements);
-    // =======================
+    // Set the matrix.
+    gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+    // Draw the geometry.
+    gl.drawArrays(gl.TRIANGLES, 0, numVertices);
 
     requestAnimationFrame(drawScene);
   }
