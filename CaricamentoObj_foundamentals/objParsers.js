@@ -139,22 +139,19 @@ function parseOBJ(text) {
 		if (!m) {
 			continue;
 		}
-
-		
-
 		const [, keyword, unparsedArgs] = m;
 		const parts = line.split(/\s+/).slice(1);
-
-		// modifica per caricare obj Wavefront
-		if(keyword === "vt" && parts.length > 2)
-			parts.pop();
-
 		const handler = keywords[keyword];
-
 		if (!handler) {
 			console.warn('unhandled keyword:', keyword);  // eslint-disable-line no-console
 			continue;
 		}
+
+		// controllo inserito per gestire modelli che fanno riferimento 
+		// a texture 3D (va a rimuovere la terza dimensione)
+		if (keyword === 'vt' && parts.length > 2)
+			parts.pop();
+
 		handler(parts, unparsedArgs);
 	}
 
