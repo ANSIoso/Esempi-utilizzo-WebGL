@@ -1,0 +1,17 @@
+# Blender 4.1.1 MTL File: 'untitled.blend'
+# www.blender.org
+
+newmtl Materiale
+Ns 510.204102
+Ka 0.779221 0.779221 0.779221
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 12.499999
+d 1.000000
+illum 3
+
+map_Ka slab_diffuse.jpg
+map_Kd slab_diffuse.jpg
+map_Bump slab_normal.jpg
+bump slab_normal.png

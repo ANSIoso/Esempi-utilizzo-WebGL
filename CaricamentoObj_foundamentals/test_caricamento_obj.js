@@ -136,6 +136,9 @@ async function loadGeneralObj(objHref) {
 	return { parts, objOffset }
 }
 
+function degToRad(deg) {
+	return deg * Math.PI / 180;
+}
 
 async function main() {
 	// Get A WebGL context
@@ -154,12 +157,8 @@ async function main() {
 	const objHrefG = '../models/cat/12221_Cat_v1_l3.obj';
 	var gatto = await loadGeneralObj(objHrefG);
 
-	const objHrefP = '../models_blender/untitled.obj';
+	const objHrefP = '../models_blender/rock_slab/slab.obj';
 	var pavimento = await loadGeneralObj(objHrefP);
-
-	function degToRad(deg) {
-		return deg * Math.PI / 180;
-	}
 
 	function render(time) {
 		time *= 0.001;  // convert to seconds
@@ -171,7 +170,7 @@ async function main() {
 		// ====== v_camera_v ======
 
 		const cameraTarget = [0, 0, 0];
-		const cameraPosition = [0,30,100];
+		const cameraPosition = [0,40,120];
 
 		// Set zNear and zFar to something hopefully appropriate
 		// for the size of this object.
@@ -207,9 +206,9 @@ async function main() {
 		// are at the same space.
 
 		let u_world = m4.translation(0, 20, 0)
-		u_world = m4.yRotate(u_world, time/2);
+		u_world = m4.yRotate(u_world, time/4);
 		// u_world = m4.zRotate(u_world, 1.5);
-		u_world = m4.xRotate(u_world, 4.5);
+		u_world = m4.xRotate(u_world, degToRad(-90));
 		u_world = m4.translate(u_world, ...gatto.objOffset);
 
 		for (const { bufferInfo, material } of gatto.parts) {
@@ -224,8 +223,8 @@ async function main() {
 		}
 
 		u_world = m4.translation(0, 0, 0)
-		u_world = m4.yRotate(u_world, time/2);
-		u_world = m4.scale(u_world, 15, 10, 15);
+		u_world = m4.yRotate(u_world, time/4);
+		u_world = m4.scale(u_world, 6, 3, 6);
 		u_world = m4.translate(u_world, ...pavimento.objOffset);
 
 		for (const { bufferInfo, material } of pavimento.parts) {
