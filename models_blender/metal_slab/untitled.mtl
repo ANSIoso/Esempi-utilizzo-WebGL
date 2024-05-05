@@ -1,0 +1,12 @@
+# Blender 4.1.1 MTL File: 'untitled.blend'
+# www.blender.org
+
+newmtl Material
+Ns 568.794556
+Ka 0.297836 0.297836 0.297836
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 5.200000
+d 1.000000
+illum 3
+map_Kd metal-plate-texture.jpg
