@@ -1,18 +1,27 @@
 const settings = {
-	cameraX: 6,
-	cameraY: 5,
-	posX: -60,
+	cameraX: 60,
+	cameraY: 100,
+	posX: -40,
 	posY: 100,
-	posZ: 20,
+	posZ: 0,
 	targetX: 0.8,
 	targetY: 0,
 	targetZ: 4.7,
 	projWidth: 0.1,
 	projHeight: 0.1,
 	perspective: true,
-	fieldOfView: 50,
+	fieldOfView: 46,
 	bias: -0.0002,
 };
+
+var r = 0
+
+function tick() {
+	r += 0.2;
+
+	if (r == 360)
+		r = 0;
+}
 
 slider_cameraX = document.getElementById("slider_cameraX");
 slider_cameraY = document.getElementById("slider_cameraY");
@@ -216,7 +225,7 @@ async function main() {
 	// var compilationLog = gl.getShaderInfoLog(meshProgramInfo.program);
 	// console.log('Shader compiler log: ' + compilationLog);
 
-	const objHrefG = '../models/cat/12221_Cat_v1_l3.obj';
+	const objHrefG = '../models_blender/cubo_test/cubo.obj';
 	var gatto = await loadGeneralObj(objHrefG);
 
 	const objHrefP = '../models_blender/metal_slab/untitled.obj';
@@ -313,21 +322,28 @@ async function main() {
 
 
 
-	function drawScene(projectionMatrix, cameraMatrix, textureMatrix, programInfo, cameraPosition) {
+	function drawScene(projectionMatrix, cameraMatrix, textureMatrix, lightWorldMatrix, programInfo) {
 		const viewMatrix = m4.inverse(cameraMatrix);
 
 		gl.useProgram(programInfo.program);
 
 		// imposto gli uniforms che sono univoci per tutti gli obj
 		const sharedUniforms = {
-			u_lightDirection: m4.normalize([settings.posX, settings.posY, settings.posZ]),
-			u_viewWorldPosition: cameraPosition,
 			u_view: viewMatrix,
 			u_projection: projectionMatrix,
 			u_bias: settings.bias,
 			u_textureMatrix: textureMatrix,
 			u_projectedTexture: depthTexture,
+
+			u_innerLimit: Math.cos(degToRad(settings.fieldOfView / 2 - 10)),
+			u_outerLimit: Math.cos(degToRad(settings.fieldOfView / 2)),
+			u_lightDirection: lightWorldMatrix.slice(8, 11).map(v => -v),
+    		u_lightWorldPosition: lightWorldMatrix.slice(12, 15),
+			u_viewWorldPosition: cameraMatrix.slice(12, 15),
 		};
+
+		console.log(m4.normalize(lightWorldMatrix.slice(12, 15)));
+		console.log(lightWorldMatrix.slice(8, 11).map(v => -v));
 
 		webglUtils.setUniforms(programInfo, sharedUniforms);
 
@@ -355,10 +371,11 @@ async function main() {
 
 		// ====== v_disegno il gatto_v ======
 
-		u_world = m4.translation(0, 20, 0)
-		// u_world = m4.zRotate(u_world, 1.5);
+		u_world = m4.translation(0, 35, 0)
+		u_world = m4.yRotate(u_world, degToRad(r));
+		// u_world = m4.zRotate(u_world, degToRad(r));
 		u_world = m4.xRotate(u_world, degToRad(-90));
-		// u_world = m4.scale(u_world, 6, 6, 6);
+		u_world = m4.scale(u_world, 16, 16, 16);
 		u_world = m4.translate(u_world, ...gatto.objOffset);
 
 		for (const { bufferInfo, material } of gatto.parts) {
@@ -416,11 +433,12 @@ async function main() {
 		gl.viewport(0, 0, depthTextureSize, depthTextureSize);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-		drawScene(lightProjectionMatrix, lightWorldMatrix, m4.identity(), colorProgramInfo, [0, 0, 0]);
+		drawScene(lightProjectionMatrix, lightWorldMatrix, m4.identity(), lightWorldMatrix, colorProgramInfo);
 
 		// now draw scene to the canvas projecting the depth texture into the scene
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+		gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
@@ -455,7 +473,7 @@ async function main() {
 		const camera = m4.lookAt(cameraPosition, cameraTarget, up);
 		// ====== ^_camera_^ ======
 
-		drawScene(projection, camera, textureMatrix, meshProgramInfo, cameraPosition);
+		drawScene(projection, camera, textureMatrix, lightWorldMatrix, meshProgramInfo);
 
 		// ------ Draw the cube ------
 
@@ -484,6 +502,7 @@ async function main() {
 		webglUtils.drawBufferInfo(gl, cubeLinesBufferInfo, gl.LINES);
 
 
+		tick();
 		requestAnimationFrame(render);
 	}
 	requestAnimationFrame(render);

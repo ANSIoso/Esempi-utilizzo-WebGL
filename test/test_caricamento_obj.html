@@ -21,7 +21,7 @@
 	<canvas id="canvas" width="800" height="600"></canvas>
 
 	<p> camera x <input id="slider_cameraX" type="range" min="-150" max="150"></p>
-	<p> camera y <input id="slider_cameraY" type="range" min="1" max="100"></p>
+	<p> camera y <input id="slider_cameraY" type="range" min="-100" max="100"></p>
 
 	<hr>
 
@@ -37,39 +37,50 @@
         attribute vec4 a_position;
 		attribute vec2 a_texcoord;
 		attribute vec3 a_normal;
-		attribute vec3 a_tangent;
-		attribute vec4 a_color;
+
+		uniform vec3 u_lightWorldPosition;
+		uniform vec3 u_viewWorldPosition;
 
 		uniform mat4 u_projection;
 		uniform mat4 u_view;
 		uniform mat4 u_world;
-		uniform vec3 u_viewWorldPosition;
-
-		varying vec3 v_normal;
-		varying vec3 v_tangent;
-		varying vec3 v_surfaceToView;
+		uniform mat4 u_textureMatrix;
+		
+		
 		varying vec2 v_texcoord;
+		varying vec4 v_projectedTexcoord;
+		varying vec3 v_normal;
+		
+		varying vec3 v_surfaceToLight;
+		varying vec3 v_surfaceToView;
+		
+		// normale
+		attribute vec3 a_tangent;
+		attribute vec4 a_color;
+
+		varying vec3 v_tangent;
 		varying vec4 v_color;
 
-		// proiezione
-		uniform mat4 u_textureMatrix;
-		varying vec4 v_projectedTexcoord;
 
 		void main() {
 			vec4 worldPosition = u_world * a_position;
+
 			gl_Position = u_projection * u_view * worldPosition;
 
+			v_texcoord = a_texcoord;
 			
-			v_surfaceToView = u_viewWorldPosition - worldPosition.xyz;
+			v_projectedTexcoord = u_textureMatrix * worldPosition;
+			
 			mat3 normalMat = mat3(u_world);
 			v_normal = normalize(normalMat * a_normal);
+			
+			v_surfaceToLight = u_lightWorldPosition - worldPosition.xyz;
+			v_surfaceToView = u_viewWorldPosition - worldPosition.xyz;
+			
+			// codice normale
 			v_tangent = normalize(normalMat * a_tangent);
 
-			v_texcoord = a_texcoord;
 			v_color = a_color;
-
-			// codice proiezione
-			v_projectedTexcoord = u_textureMatrix * worldPosition;
 		}
     </script>
 
@@ -77,27 +88,30 @@
 		precision highp float;
 
 		varying vec2 v_texcoord;
-		varying vec3 v_normal;
-		varying vec3 v_tangent;
-		varying vec3 v_surfaceToView;
-		varying vec4 v_color;
-
-		// proiezione
 		varying vec4 v_projectedTexcoord;
+		varying vec3 v_normal;
+		varying vec3 v_surfaceToLight;
+		varying vec3 v_surfaceToView;
+
+		varying vec3 v_tangent;
+		
+		
+		varying vec4 v_color; //u_colorMult
+		uniform sampler2D diffuseMap; //u_texture
 		uniform sampler2D u_projectedTexture;
 		uniform float u_bias;
+		uniform float shininess;
+		uniform vec3 u_lightDirection;
+		uniform float u_innerLimit;          // in dot space
+		uniform float u_outerLimit;          // in dot space
 
 		uniform vec3 diffuse;
-		uniform sampler2D diffuseMap;
 		uniform vec3 ambient;
 		uniform vec3 emissive;
 		uniform vec3 specular;
 		uniform sampler2D specularMap;
-		uniform float shininess;
 		uniform sampler2D normalMap;
 		uniform float opacity;
-		uniform vec3 u_lightDirection;
-		uniform vec3 u_ambientLight;
 
 		void main () {
 			vec3 normal = normalize(v_normal) * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
@@ -109,7 +123,93 @@
 			normal = normalize(tbn * normal);
 
 			vec3 surfaceToViewDirection = normalize(v_surfaceToView);
-			vec3 halfVector = normalize(u_lightDirection + surfaceToViewDirection);
+			vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+
+
+			vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+			float fakeLight = dot(u_lightDirection, normal) * .5 + .5;
+			float specularLight = clamp(dot(normal, halfVector), 0.0, 1.0);
+			vec4 specularMapColor = texture2D(specularMap, v_texcoord);
+			vec3 effectiveSpecular = specular * specularMapColor.rgb;
+
+			vec4 diffuseMapColor = texture2D(diffuseMap, v_texcoord);
+			vec3 effectiveDiffuse = diffuse * diffuseMapColor.rgb * v_color.rgb;
+			float effectiveOpacity = opacity * diffuseMapColor.a * v_color.a;
+
+
+			float dotFromDirection = dot(surfaceToLightDirection,
+                               -u_lightDirection);
+			float limitRange = u_innerLimit - u_outerLimit;
+			float inLight = clamp((dotFromDirection - u_outerLimit) / limitRange, 0.0, 1.0); // |modificare qui per indicare
+			float light = inLight * dot(normal, surfaceToLightDirection);                    // |oscurità fuori dal cono di luce
+
+			// codice proiezione
+			// divide by w to get the correct value. See article on perspective
+			vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
+			float currentDepth = projectedTexcoord.z + u_bias;
+			
+			bool inRange = 
+				projectedTexcoord.x >= 0.0 &&
+				projectedTexcoord.x <= 1.0 &&
+				projectedTexcoord.y >= 0.0 &&
+				projectedTexcoord.y <= 1.0;
+
+			float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
+			float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;  // modificare qui per indicare
+																						  // oscurità ombra oggerri
+			
+			gl_FragColor = vec4(
+				emissive +
+				effectiveDiffuse * light * shadowLight +
+				effectiveSpecular * inLight * pow(specularLight, shininess) * shadowLight,
+				effectiveOpacity);
+		}
+	</script>
+
+	<script id="3d-fragment-shader1" type="x-shader/x-fragment">
+		precision highp float;
+
+		varying vec2 v_texcoord;
+		varying vec4 v_projectedTexcoord;
+		varying vec3 v_normal;
+		varying vec3 v_surfaceToLight;
+		varying vec3 v_surfaceToView;
+
+		varying vec3 v_tangent;
+		
+		
+		varying vec4 v_color; //u_colorMult
+		uniform sampler2D diffuseMap; //u_texture
+		uniform sampler2D u_projectedTexture;
+		uniform float u_bias;
+		uniform float shininess;
+		uniform vec3 u_lightDirection;
+		uniform float u_innerLimit;          // in dot space
+		uniform float u_outerLimit;          // in dot space
+
+		uniform vec3 diffuse;
+		uniform vec3 ambient;
+		uniform vec3 emissive;
+		uniform vec3 specular;
+		uniform sampler2D specularMap;
+		uniform sampler2D normalMap;
+		uniform float opacity;
+
+		void main () {
+			vec3 normal = normalize(v_normal) * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
+			vec3 tangent = normalize(v_tangent) * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
+			vec3 bitangent = normalize(cross(normal, tangent));
+
+			mat3 tbn = mat3(tangent, bitangent, normal);
+			normal = texture2D(normalMap, v_texcoord).rgb * 2. - 1.;
+			normal = normalize(tbn * normal);
+
+			vec3 surfaceToViewDirection = normalize(v_surfaceToView);
+			vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+
+
+			vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
 
 			float fakeLight = dot(u_lightDirection, normal) * .5 + .5;
 			float specularLight = clamp(dot(normal, halfVector), 0.0, 1.0);
@@ -133,16 +233,13 @@
 				projectedTexcoord.y <= 1.0;
 
 			float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
-			float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;  
-			vec4 texColor = vec4(
+			float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.2 : 1.0;  
+			
+			gl_FragColor = vec4(
 				emissive +
-				ambient * u_ambientLight +
-				effectiveDiffuse * fakeLight +
-				effectiveSpecular * pow(specularLight, shininess),
+				effectiveDiffuse * shadowLight +
+				effectiveSpecular * pow(specularLight, shininess) * shadowLight,
 				effectiveOpacity);
-
-			float projectedAmount = inRange ? 1.0 : 0.0;
-			gl_FragColor = vec4(texColor.rgb * shadowLight, texColor.a);
 		}
 	</script>
 
