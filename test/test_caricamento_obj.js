@@ -60,7 +60,7 @@ slider_bias.addEventListener("input", function () {
 
 var gl;
 var textures;
-var defaultMaterial
+var defaultMaterial;
 
 function setUpDefoultTexture() {
 	textures = {
@@ -261,10 +261,6 @@ async function main() {
 	});
 
 
-	const imageTexture = createTexture(gl, '../models/f-texture.png');
-
-
-
 	const depthTexture = gl.createTexture();
 	const depthTextureSize = 512;
 	gl.bindTexture(gl.TEXTURE_2D, depthTexture);
@@ -342,9 +338,6 @@ async function main() {
 			u_viewWorldPosition: cameraMatrix.slice(12, 15),
 		};
 
-		console.log(m4.normalize(lightWorldMatrix.slice(12, 15)));
-		console.log(lightWorldMatrix.slice(8, 11).map(v => -v));
-
 		webglUtils.setUniforms(programInfo, sharedUniforms);
 
 
@@ -391,10 +384,6 @@ async function main() {
 
 		// ====== ^_disegno il gatto_^ ======
 	}
-
-
-
-
 
 
 	function render(time) {
@@ -475,7 +464,7 @@ async function main() {
 
 		drawScene(projection, camera, textureMatrix, lightWorldMatrix, meshProgramInfo);
 
-		// ------ Draw the cube ------
+		// ------ Draw the light frustum ------
 
 		const viewMatrix = m4.inverse(camera);
 
@@ -492,7 +481,7 @@ async function main() {
 
 		// Set the uniforms we just computed
 		webglUtils.setUniforms(colorProgramInfo, {
-			u_color: [0, 0, 0, 1],
+			u_color: [1, 1, 1, 1],
 			u_view: viewMatrix,
 			u_projection: projection,
 			u_world: mat,
