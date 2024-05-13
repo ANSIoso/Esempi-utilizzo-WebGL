@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
 
-    <style>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+
+	<style>
 		body {
 			background-color: rgb(54, 53, 53);
 		}
@@ -15,10 +16,11 @@
 		}
 	</style>
 </head>
-<body>
-    <canvas id="canvas" width="800" height="600"></canvas>
 
-    <script id="3d-vertex-shader" type="x-shader/x-vertex">
+<body>
+	<canvas id="canvas" width="1280" height="720"></canvas>
+
+	<script id="3d-vertex-shader" type="x-shader/x-vertex">
         attribute vec4 a_position;
 		attribute vec2 a_texcoord;
 		attribute vec3 a_normal;
@@ -126,7 +128,7 @@
 			float dotFromDirection = dot(surfaceToLightDirection,
                                -u_lightDirection);
 			float limitRange = u_innerLimit - u_outerLimit;
-			float inLight = clamp((dotFromDirection - u_outerLimit) / limitRange, 0.0, 1.0); // |modificare qui per indicare
+			float inLight = clamp((dotFromDirection - u_outerLimit) / limitRange, 0.1, 1.0); // |modificare qui per indicare
 			float light = inLight * dot(normal, surfaceToLightDirection);                    // |oscurità fuori dal cono di luce
 
 			// codice proiezione
@@ -141,7 +143,7 @@
 				projectedTexcoord.y <= 1.0;
 
 			float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
-			float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;  // modificare qui per indicare
+			float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.1 : 1.0;  // modificare qui per indicare
 																						  // oscurità ombra oggerri
 			
 			gl_FragColor = vec4(
@@ -151,6 +153,8 @@
 				effectiveOpacity);
 		}
 	</script>
+
+	<!-- v_ shadow map shader _v -->
 
 	<script id="color-vertex-shader" type="x-shader/x-vertex">
 		attribute vec4 a_position;
@@ -164,7 +168,7 @@
 		  gl_Position = u_projection * u_view * u_world * a_position;
 		}
 	</script>
-	<!-- fragment shader -->
+
 	<script id="color-fragment-shader" type="x-shader/x-fragment">
 		precision mediump float;
 		
@@ -174,12 +178,39 @@
 		}
 	</script>
 
-    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+	<!-- v_ skybox shader _v -->
+
+	<script id="skybox-vertex-shader" type="x-shader/x-vertex">
+		attribute vec4 a_position;
+		varying vec4 v_position;
+		
+		void main() {
+		  v_position = a_position;
+		  gl_Position = a_position;
+		  gl_Position.z = 1.0;
+		}
+	</script>
+
+	<script id="skybox-fragment-shader" type="x-shader/x-fragment">
+		precision mediump float;
+		
+		uniform samplerCube u_skybox;
+		uniform mat4 u_viewDirectionProjectionInverse;
+		
+		varying vec4 v_position;
+		void main() {
+		  vec4 t = u_viewDirectionProjectionInverse * v_position;
+		  gl_FragColor = textureCube(u_skybox, normalize(t.xyz / t.w));
+		}
+	</script>
+
+	<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
 	<script src="https://webglfundamentals.org/webgl/resources/m4.js"></script>
-    
-    <!-- engine -->
-    <script src="Engine/textureHelpers.js"></script>
+
+	<!-- engine -->
+	<script src="Engine/textureHelpers.js"></script>
 	<script src="Engine/objParsers.js"></script>
-    <script src="Engine/engine.js"></script>
+	<script src="Engine/engine.js"></script>
 </body>
+
 </html>

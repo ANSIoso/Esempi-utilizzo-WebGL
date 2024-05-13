@@ -1,35 +1,39 @@
-const settings = {
-    cameraX: 60,
-    cameraY: 100,
-    posX: -40,
-    posY: 100,
-    posZ: 0,
-    targetX: 0.8,
-    targetY: 0,
-    targetZ: 4.7,
-    projWidth: 0.1,
-    projHeight: 0.1,
-};
+class Transform {
+    transformMatrix;
+    // una matrice m4 è così ordinata
+    //  0 |  4 |  8 | 12
+    // ------------------
+    //  1 |  5 |  9 | 13
+    // ------------------
+    //  2 |  6 | 10 | 14
+    // ------------------
+    //  3 |  7 | 11 | 15
 
-class transform {
-    modelID;
-
-    translation = [0,0,0]
-    rotation = [0,0,0]
-    scale = [1,1,1]
-
-    constructor(modelID){
-        this.modelID =  modelID;
+    constructor() {
+        this.transformMatrix = m4.identity();
     }
 
-    getMatrix(){
-        var mat = m4.translation(...this.translation);
-        m4.xRotate(mat, this.rotation[0], mat);
-        m4.yRotate(mat, this.rotation[0], mat);
-        m4.zRotate(mat, this.rotation[0], mat);
-        m4.scale(mat, ...this.scale, mat);
+    translate(xTransl, yTransl, zTransl){
+        m4.translate(this.transformMatrix, xTransl, yTransl, zTransl, this.transformMatrix)
+    }
 
-        return mat;
+    rotate(xRotate, yRotate, zRotate){
+        m4.xRotate(this.transformMatrix, xRotate, this.transformMatrix);
+        m4.yRotate(this.transformMatrix, yRotate, this.transformMatrix);
+        m4.zRotate(this.transformMatrix, zRotate, this.transformMatrix);
+    }
+
+    scale(xScale, yScale, zScale){
+        m4.scale(this.transformMatrix, xScale, yScale, zScale, this.transformMatrix);
+    }
+
+    getPosition(){
+        return {x: this.transformMatrix[12], y: this.transformMatrix[13], z: this.transformMatrix[14]}
+    }
+
+    test(){
+        console.log(this.transformMatrix);
+        console.log(this.transformMatrix[0], this.transformMatrix[1]);
     }
 }
 
@@ -55,13 +59,36 @@ class Engine {
     unusedTexture;
 
     // variabili setting rendering
-    lightGradient = 10;
-    bias = -0.0002;
-    lightFOV = 46;
+
+    // - luce
+    lightGradient = 30;
+    bias = -0.0004; // best setting => -0.0004
+
+    lightProjectionMatrix;
+    lightFOV = 70;
+    lightProjWidth = 0.1;
+    lightProjHeight = 0.1;
+    lightNear = 2;
+    lightFar = 1000;
+
+    lightWorldMatrix;
+    lightTransform;
+
+    // - punto di vista
+    viewProjectionMatrix;
+    viewFOV = 60;
+    viewNear = 0.1;
+    viewFar = 2000;
+
+    viewMatrix;
+    viewTransform;
+
 
     // cose da disegnare
-    obj = [];
-    objInfo = [];
+    obj = [];       // contiene tutte le mash utilizzabili
+    objInfo = [];   // contiene le info sulle mash che voglio visualizzare 
+    // nel formato: {- idMash (che fa riferimento all'array obj)
+    //               - Transform mash (the indica le trasformazioni da applicargli)}
 
     constructor(canvas) {
         this.gl = canvas.getContext("webgl");
@@ -88,6 +115,9 @@ class Engine {
 
         this.setUpDefoultObjInfo();
         this.setDepthTexture();
+
+        this.viewTransform = new Transform();
+        this.lightTransform = new Transform();
     }
 
     // === metodi setup iniziali per variabili webgl
@@ -280,8 +310,44 @@ class Engine {
         return { parts, objOffset }
     }
 
-    // === metodi per il rendering degli obj
+    // === metodi per il rendering
 
+    // imposto la luce
+    updateLight() {
+        // definisco proiezione della luce
+        this.lightProjectionMatrix = m4.perspective(
+            degToRad(this.lightFOV),
+            this.lightProjWidth / this.lightProjHeight,
+            this.lightNear,
+            this.lightFar
+        );
+
+        
+        // posiziono la luce al fianco della camera
+        this.lightTransform.transformMatrix = [...this.viewTransform.transformMatrix];
+        this.lightTransform.translate(10,10, 0);
+        this.lightTransform.rotate(degToRad(-25), 0, 0);
+        // posiziono la luce dove il transform indica
+        this.lightWorldMatrix = this.lightTransform.transformMatrix;
+    }
+
+    // imposto la view
+    updateView() {
+        // definisco proiezione del punto di vista
+        this.viewProjectionMatrix = m4.perspective(
+            degToRad(this.viewFOV),
+            this.gl.canvas.clientWidth / this.gl.canvas.clientHeight, // aspect ratio
+            this.viewNear,
+            this.viewFar);
+
+        // posiziono il punto di vista dove il transform indica
+        this.viewMatrix = this.viewTransform.transformMatrix;
+    }
+
+    // disegna la scena
+    // - con il punto di vista di "cameraMatrix"
+    // - riposrtando l'ombra della luce in posizione "lightWorldMatrix" nella posizione "textureMatrix"
+    // - seguendo le istruzioni dello shader "programInfo"
     drawScene(projectionMatrix, cameraMatrix, textureMatrix, lightWorldMatrix, programInfo) {
         const viewMatrix = m4.inverse(cameraMatrix);
 
@@ -312,9 +378,9 @@ class Engine {
             let mashCenter = mash.objOffset;
 
             // ottengo transform indicata dall'emement e la applico alla mash "ricentrata"
-            let mashTransform = element.getMatrix();
+            let mashTransform = element.transform.transformMatrix;
             var u_world = m4.translate(mashTransform, ...mashCenter);
-    
+
             for (const { bufferInfo, material } of mash.parts) {
                 // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
                 webglUtils.setBuffersAndAttributes(this.gl, programInfo, bufferInfo);
@@ -325,7 +391,7 @@ class Engine {
                 // calls gl.drawArrays or gl.drawElements
                 webglUtils.drawBufferInfo(this.gl, bufferInfo);
             }
-             
+
         });
     }
 
@@ -337,67 +403,35 @@ class Engine {
         this.gl.enable(this.gl.CULL_FACE);
         this.gl.enable(this.gl.DEPTH_TEST);
 
-
-        // matrice di lookAt della proiezione texture
-        let lightWorldMatrix = m4.lookAt(
-            [settings.posX, settings.posY, settings.posZ],          // position
-            [settings.targetX, settings.targetY, settings.targetZ], // target
-            [0, 1, 0],                                              // up
-        );
-
-        const lightProjectionMatrix = m4.perspective(
-            degToRad(this.lightFOV),
-            settings.projWidth / settings.projHeight,
-            2,  // near
-            200 // far
-        )  
+        this.updateLight();
 
         // draw to the depth texture
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer);
         this.gl.viewport(0, 0, this.depthTextureSize, this.depthTextureSize);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
-        this.drawScene(lightProjectionMatrix, lightWorldMatrix, m4.identity(), lightWorldMatrix, this.colorProgramInfo);
+        this.drawScene(this.lightProjectionMatrix, this.lightWorldMatrix, m4.identity(), this.lightWorldMatrix, this.colorProgramInfo);
 
         // now draw scene to the canvas projecting the depth texture into the scene
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
-        this.gl.clearColor(0, 0, 0, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
 
         let textureMatrix = m4.identity();
         textureMatrix = m4.translate(textureMatrix, 0.5, 0.5, 0.5);
         textureMatrix = m4.scale(textureMatrix, 0.5, 0.5, 0.5);
-        textureMatrix = m4.multiply(textureMatrix, lightProjectionMatrix);
+        textureMatrix = m4.multiply(textureMatrix, this.lightProjectionMatrix);
         // use the inverse of this world matrix to make
         // a matrix that will transform other positions
         // to be relative this world space.
         textureMatrix = m4.multiply(
             textureMatrix,
-            m4.inverse(lightWorldMatrix));
+            m4.inverse(this.lightWorldMatrix));
 
+        this.updateView();
 
-        // ====== v_camera_v ======
-
-        // Set zNear and zFar to something hopefully appropriate
-        // for the size of this object.
-        const zNear = 0.1;
-        const zFar = 2000;
-
-        const fieldOfViewRadians = degToRad(60);
-        const aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
-        const projection = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-
-
-        const cameraTarget = [0, 0, 0];
-        const cameraPosition = [settings.cameraX, settings.cameraY, 120];
-        const up = [0, 1, 0];
-        // Compute the camera's matrix using look at.
-        const camera = m4.lookAt(cameraPosition, cameraTarget, up);
-        // ====== ^_camera_^ ======
-
-        this.drawScene(projection, camera, textureMatrix, lightWorldMatrix, this.meshProgramInfo);
+        this.drawScene(this.viewProjectionMatrix, this.viewMatrix, textureMatrix, this.lightWorldMatrix, this.meshProgramInfo);
 
         // // ------ Draw the light frustum ------
 
@@ -425,29 +459,84 @@ class Engine {
         // // calls gl.drawArrays or gl.drawElements
         // webglUtils.drawBufferInfo(gl, cubeLinesBufferInfo, gl.LINES);
 
-
-        // tick();
         requestAnimationFrame(this.render.bind(this));
     }
 
 
     async load() {
-        this.obj.push(await this.loadGeneralObj('../models/cat/12221_Cat_v1_l3.obj'));
-        this.obj.push(await this.loadGeneralObj('../models_blender/metal_slab/untitled.obj'));
+        this.viewTransform.translate(0, 0, 0);
+        this.lightTransform.translate(10, 10, 0);
+        this.lightTransform.rotate(degToRad(-25), 0, 0);
 
-        var t1 = new transform(0);
-        var t2 = new transform(1);
-        t2.scale = [5,5,5]
-        t2.translation[1] = -30;
-
-        this.objInfo.push(t1);
-        this.objInfo.push(t2);
+        this.obj.push(await this.loadGeneralObj('../models/grass1/10450_Rectangular_Grass_Patch_v1_iterations-2.obj'));
         
-        e.render();
+        var t1 = new Transform();
+        t1.translate(0,-20,0);
+        t1.rotate(degToRad(-90), 0, 0);
+        this.objInfo.push({
+            transform: t1,
+            modelID: 0
+        });
+
+        var t3 = new Transform();
+        t3.translate(290,-20,0);
+        t3.rotate(degToRad(-90), 0, degToRad(-270));
+        this.objInfo.push({
+            transform: t3,
+            modelID: 0
+        });
+
+        
+        
+        this.obj.push(await this.loadGeneralObj('../models/cat/12221_Cat_v1_l3.obj'));
+
+        var t2 = new Transform();
+        t2.rotate(degToRad(-90), 0, 0);
+        this.objInfo.push({
+            transform: t2,
+            modelID: 1
+        });
+
+        this.render();
     }
 
 }
 
 const canvas = document.getElementById("canvas")
-const e = new Engine(canvas);
-e.load();
+const engine = new Engine(canvas);
+engine.load();
+
+window.onkeydown = function (e) {
+
+    switch (e.key) {
+        case 'w':
+            engine.viewTransform.translate(0,0,-10);
+            engine.lightTransform.translate(0,0,-1);
+            break;
+        case 's':
+            engine.viewTransform.translate(0,0,1);
+            engine.lightTransform.translate(0,0,1);
+            break;
+        case 'a':
+            engine.viewTransform.translate(-1,0,0);
+            engine.lightTransform.translate(-1,0,0);
+            break;
+        case 'd':
+            engine.viewTransform.translate(1,0,0);
+            engine.lightTransform.translate(1,0,0);
+            break;
+        case 'e':
+            engine.viewTransform.rotate(0,degToRad(-1),0);
+            engine.lightTransform.rotate(0,degToRad(-1),0);
+            break;
+        case 'q':
+            engine.viewTransform.rotate(0,degToRad(1),0);
+            engine.lightTransform.rotate(0,degToRad(1),0);
+            break;
+
+        default:
+            break;
+    }
+
+    console.log(engine.viewTransform.getPosition());
+};
