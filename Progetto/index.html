@@ -13,12 +13,22 @@
 
 		#canvas {
 			background-color: rgb(51, 50, 50);
+			width: 1280px;
+			height: 720px;
 		}
+
+		@media only screen and (max-width: 600px) {
+			#canvas {
+				width: 100%;
+				height: 100vh;
+			}
+		}
+
 	</style>
 </head>
 
 <body>
-	<canvas id="canvas" width="1280" height="720"></canvas>
+	<canvas id="canvas"></canvas>
 
 	<script id="3d-vertex-shader" type="x-shader/x-vertex">
         attribute vec4 a_position;
@@ -207,10 +217,17 @@
 	<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
 	<script src="https://webglfundamentals.org/webgl/resources/m4.js"></script>
 
+	<!-- model -->
+	<script src="Model/game.js"></script>
+
 	<!-- engine -->
 	<script src="Engine/textureHelpers.js"></script>
 	<script src="Engine/objParsers.js"></script>
 	<script src="Engine/engine.js"></script>
+
+	<!-- controller -->
+	<script src="Controller/playerController.js"></script>
+
 </body>
 
 </html>

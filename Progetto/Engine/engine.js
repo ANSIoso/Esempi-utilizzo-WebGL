@@ -1,65 +1,29 @@
-class Transform {
-    transformMatrix;
-    // una matrice m4 è così ordinata
-    //  0 |  4 |  8 | 12
-    // ------------------
-    //  1 |  5 |  9 | 13
-    // ------------------
-    //  2 |  6 | 10 | 14
-    // ------------------
-    //  3 |  7 | 11 | 15
-
-    constructor() {
-        this.transformMatrix = m4.identity();
-    }
-
-    translate(xTransl, yTransl, zTransl){
-        m4.translate(this.transformMatrix, xTransl, yTransl, zTransl, this.transformMatrix)
-    }
-
-    rotate(xRotate, yRotate, zRotate){
-        m4.xRotate(this.transformMatrix, xRotate, this.transformMatrix);
-        m4.yRotate(this.transformMatrix, yRotate, this.transformMatrix);
-        m4.zRotate(this.transformMatrix, zRotate, this.transformMatrix);
-    }
-
-    scale(xScale, yScale, zScale){
-        m4.scale(this.transformMatrix, xScale, yScale, zScale, this.transformMatrix);
-    }
-
-    getPosition(){
-        return {x: this.transformMatrix[12], y: this.transformMatrix[13], z: this.transformMatrix[14]}
-    }
-
-    test(){
-        console.log(this.transformMatrix);
-        console.log(this.transformMatrix[0], this.transformMatrix[1]);
-    }
-}
-
-function degToRad(deg) {
-    return deg * Math.PI / 180;
-}
-
 class Engine {
 
-    // variabili usate per funzionamento base webgl
+    // == variabili usate per funzionamento base webgl ==
     gl;
     ext;
 
+    // - shader programs
     meshProgramInfo;
     colorProgramInfo;
+    skyboxProgramInfo;
 
+    // - setting defoult di un modello caricato
     defoulTexture;
     defaultMaterial;
 
+    // - variabili utilizzate per rendering ombre
     depthTexture;
     depthTextureSize = 512;
     depthFramebuffer;
     unusedTexture;
 
-    // variabili setting rendering
+    // - variabili utilizzate per la skybox
+    skyTexture;
+    quadBufferInfo;
 
+    // ========== variabili setting rendering ===========
     // - luce
     lightGradient = 30;
     bias = -0.0004; // best setting => -0.0004
@@ -83,14 +47,17 @@ class Engine {
     viewMatrix;
     viewTransform;
 
+    // =============== cose da disegnare ================
+    obj = {};       // contiene tutte le mash utilizzabili
+    game;           // contiene il gioco esso ha le info su:
+    // - quali mash renderizzare
+    // - dove renderizzarle
 
-    // cose da disegnare
-    obj = [];       // contiene tutte le mash utilizzabili
-    objInfo = [];   // contiene le info sulle mash che voglio visualizzare 
-    // nel formato: {- idMash (che fa riferimento all'array obj)
-    //               - Transform mash (the indica le trasformazioni da applicargli)}
 
-    constructor(canvas) {
+    // ==================== METODI ======================
+    constructor(canvas, game) {
+        this.game = game;
+
         this.gl = canvas.getContext("webgl");
         if (!this.gl) {
             return;
@@ -104,6 +71,7 @@ class Engine {
         // compiles and links the shaders, looks up attribute and uniform locations
         this.meshProgramInfo = webglUtils.createProgramInfo(this.gl, ['3d-vertex-shader', '3d-fragment-shader']);
         this.colorProgramInfo = webglUtils.createProgramInfo(this.gl, ['color-vertex-shader', 'color-fragment-shader']);
+        this.skyboxProgramInfo = webglUtils.createProgramInfo(this.gl, ["skybox-vertex-shader", "skybox-fragment-shader"]);
 
         // controllo che gli shader siano stati caricati correttamente
         console.log(this.meshProgramInfo.program);
@@ -114,9 +82,25 @@ class Engine {
         // console.log('Shader compiler log: ' + compilationLog);
 
         this.setUpDefoultObjInfo();
+
         this.setDepthTexture();
 
-        this.viewTransform = new Transform();
+        // imposto le informazioni necessarie a creare la skybox
+        this.setUpSkyboxTexture();
+
+        this.quadBufferInfo = {
+            position: { numComponents: 2, data: null, },
+        };
+        this.quadBufferInfo.position.data = [
+            -1, -1,
+            1, -1,
+            -1, 1,
+            -1, 1,
+            1, -1,
+            1, 1,
+        ]
+
+        this.viewTransform = this.game.player;
         this.lightTransform = new Transform();
     }
 
@@ -195,6 +179,81 @@ class Engine {
             this.gl.TEXTURE_2D,         // texture target
             this.unusedTexture,         // texture
             0);                    // mip level
+    }
+
+    // - crea la le textures utilizzate per la skybox
+    setUpSkyboxTexture() {
+        // Create a texture.
+        this.skyTexture = this.gl.createTexture();
+        this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.skyTexture);
+
+        const faceInfos = [
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+                url: '../skybox/testSkybox/px.jpg',
+            },
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+                url: '../skybox/testSkybox/nx.jpg',
+            },
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+                url: '../skybox/testSkybox/py.jpg',
+            },
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                url: '../skybox/testSkybox/ny.jpg',
+            },
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+                url: '../skybox/testSkybox/pz.jpg',
+            },
+            {
+                target: this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                url: '../skybox/testSkybox/nz.jpg',
+            },
+        ];
+        faceInfos.forEach((faceInfo) => {
+            const { target, url } = faceInfo;
+
+            // Upload the canvas to the cubemap face.
+            const level = 0;
+            const internalFormat = this.gl.RGBA;
+            const width = 512;
+            const height = 512;
+            const format = this.gl.RGBA;
+            const type = this.gl.UNSIGNED_BYTE;
+
+            // setup each face so it's immediately renderable
+            this.gl.texImage2D(target, level, internalFormat, width, height, 0, format, type, null);
+
+            // Asynchronously load an image
+            const image = new Image();
+            image.src = url;
+
+            self = this;
+
+            image.addEventListener('load', function () {
+                // Now that the image has loaded make copy it to the texture.
+                self.gl.bindTexture(self.gl.TEXTURE_CUBE_MAP, self.skyTexture);
+                self.gl.texImage2D(target, level, internalFormat, format, type, image);
+
+
+                // Check if the image is a power of 2 in both dimensions.
+                if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+                    // Yes, it's a power of 2. Generate mips.
+                    self.gl.generateMipmap(self.gl.TEXTURE_CUBE_MAP);
+                } else {
+                    // No, it's not a power of 2. Turn of mips and set wrapping to clamp to edge
+                    self.gl.texParameteri(self.gl.TEXTURE_CUBE_MAP, self.gl.TEXTURE_WRAP_S, self.gl.CLAMP_TO_EDGE);
+                    self.gl.texParameteri(self.gl.TEXTURE_CUBE_MAP, self.gl.TEXTURE_WRAP_T, self.gl.CLAMP_TO_EDGE);
+                    self.gl.texParameteri(self.gl.TEXTURE_CUBE_MAP, self.gl.TEXTURE_MIN_FILTER, self.gl.LINEAR);
+                }
+                self.gl.generateMipmap(self.gl.TEXTURE_CUBE_MAP);
+            });
+        });
+        this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP);
+        this.gl.texParameteri(this.gl.TEXTURE_CUBE_MAP, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
     }
 
     // === funzioni utilità per modelli
@@ -322,11 +381,11 @@ class Engine {
             this.lightFar
         );
 
-        
+
         // posiziono la luce al fianco della camera
-        this.lightTransform.transformMatrix = [...this.viewTransform.transformMatrix];
-        this.lightTransform.translate(10,10, 0);
-        this.lightTransform.rotate(degToRad(-25), 0, 0);
+        this.lightTransform.transformMatrix = m4.copy(this.viewTransform.getMatrix());
+        this.lightTransform.translate(10, 0, 0);
+        this.lightTransform.rotate(degToRad(-15), 0, 0);
         // posiziono la luce dove il transform indica
         this.lightWorldMatrix = this.lightTransform.transformMatrix;
     }
@@ -341,7 +400,7 @@ class Engine {
             this.viewFar);
 
         // posiziono il punto di vista dove il transform indica
-        this.viewMatrix = this.viewTransform.transformMatrix;
+        this.viewMatrix = this.viewTransform.getMatrix();
     }
 
     // disegna la scena
@@ -370,8 +429,10 @@ class Engine {
 
         webglUtils.setUniforms(programInfo, sharedUniforms);
 
-        // per ogni elemento presente in objinfo
-        this.objInfo.forEach(element => {
+        // estraggo tutte le info sui gameObj che devo "disegnare"
+        let gameObjInfo = game.getGameObjInfo();
+
+        gameObjInfo.forEach(element => {
 
             // ottengo la mash indicata dall'emement
             let mash = this.obj[element.modelID];
@@ -393,6 +454,35 @@ class Engine {
             }
 
         });
+    }
+
+    // disegna la skybox
+    drawSkybox() {
+        // estraggo dalla matrice di traslazione della camera la direzione della visuale
+        var viewDirectionMatrix = m4.inverse(this.viewMatrix);
+        viewDirectionMatrix[12] = 0;
+        viewDirectionMatrix[13] = 0;
+        viewDirectionMatrix[14] = 0;
+
+        var viewDirectionProjectionMatrix = m4.multiply(
+            this.viewProjectionMatrix, viewDirectionMatrix);
+        var viewDirectionProjectionInverseMatrix =
+            m4.inverse(viewDirectionProjectionMatrix);
+
+        // effettuo depth test
+        // imposto come shader program da susare quello che gestisce la skybox
+        this.gl.depthFunc(this.gl.LEQUAL);
+        this.gl.useProgram(this.skyboxProgramInfo.program);
+
+        // carico info della skybox nello shader program e disegno
+        var bufferInfo = webglUtils.createBufferInfoFromArrays(this.gl, this.quadBufferInfo);
+
+        webglUtils.setBuffersAndAttributes(this.gl, this.skyboxProgramInfo, bufferInfo);
+        webglUtils.setUniforms(this.skyboxProgramInfo, {
+            u_viewDirectionProjectionInverse: viewDirectionProjectionInverseMatrix,
+            u_skybox: this.skyTexture,
+        });
+        webglUtils.drawBufferInfo(this.gl, bufferInfo);
     }
 
     render(time) {
@@ -433,110 +523,36 @@ class Engine {
 
         this.drawScene(this.viewProjectionMatrix, this.viewMatrix, textureMatrix, this.lightWorldMatrix, this.meshProgramInfo);
 
-        // // ------ Draw the light frustum ------
+        this.drawSkybox();
 
-        // const viewMatrix = m4.inverse(camera);
-
-        // gl.useProgram(colorProgramInfo.program);
-
-        // // Setup all the needed attributes.
-        // webglUtils.setBuffersAndAttributes(gl, colorProgramInfo, cubeLinesBufferInfo);
-
-        // // scale the cube in Z so it's really long
-        // // to represent the texture is being projected to
-        // // infinity
-        // const mat = m4.multiply(
-        //     lightWorldMatrix, m4.inverse(lightProjectionMatrix));
-
-        // // Set the uniforms we just computed
-        // webglUtils.setUniforms(colorProgramInfo, {
-        //     u_color: [1, 1, 1, 1],
-        //     u_view: viewMatrix,
-        //     u_projection: projection,
-        //     u_world: mat,
-        // });
-
-        // // calls gl.drawArrays or gl.drawElements
-        // webglUtils.drawBufferInfo(gl, cubeLinesBufferInfo, gl.LINES);
+        //loop
+        this.game.updateStatus();
+        controller.loop();
 
         requestAnimationFrame(this.render.bind(this));
     }
 
 
     async load() {
-        this.viewTransform.translate(0, 0, 0);
-        this.lightTransform.translate(10, 10, 0);
-        this.lightTransform.rotate(degToRad(-25), 0, 0);
 
-        this.obj.push(await this.loadGeneralObj('../models/grass1/10450_Rectangular_Grass_Patch_v1_iterations-2.obj'));
-        
-        var t1 = new Transform();
-        t1.translate(0,-20,0);
-        t1.rotate(degToRad(-90), 0, 0);
-        this.objInfo.push({
-            transform: t1,
-            modelID: 0
-        });
+        this.obj["terreno"] = await this.loadGeneralObj('../../models_blender/grass_slab/grass_slab.obj');
 
-        var t3 = new Transform();
-        t3.translate(290,-20,0);
-        t3.rotate(degToRad(-90), 0, degToRad(-270));
-        this.objInfo.push({
-            transform: t3,
-            modelID: 0
-        });
+        this.obj["gatto"] = await this.loadGeneralObj('../../models/cat/12221_Cat_v1_l3.obj');
 
-        
-        
-        this.obj.push(await this.loadGeneralObj('../models/cat/12221_Cat_v1_l3.obj'));
+        for (let index = 1; index <= 5; index++) {
+            let treeName = "albero" + index;
 
-        var t2 = new Transform();
-        t2.rotate(degToRad(-90), 0, 0);
-        this.objInfo.push({
-            transform: t2,
-            modelID: 1
-        });
+            this.obj[treeName] = await this.loadGeneralObj('../../models_blender/alberi/' + treeName + '.obj');
+        }
+
+        for (let index = 1; index <= 7; index++) {
+            let rockName = "roccia" + index;
+
+            this.obj[rockName] = await this.loadGeneralObj('../../models_blender/rocce/' + rockName + '.obj');
+        }
+
 
         this.render();
     }
 
 }
-
-const canvas = document.getElementById("canvas")
-const engine = new Engine(canvas);
-engine.load();
-
-window.onkeydown = function (e) {
-
-    switch (e.key) {
-        case 'w':
-            engine.viewTransform.translate(0,0,-10);
-            engine.lightTransform.translate(0,0,-1);
-            break;
-        case 's':
-            engine.viewTransform.translate(0,0,1);
-            engine.lightTransform.translate(0,0,1);
-            break;
-        case 'a':
-            engine.viewTransform.translate(-1,0,0);
-            engine.lightTransform.translate(-1,0,0);
-            break;
-        case 'd':
-            engine.viewTransform.translate(1,0,0);
-            engine.lightTransform.translate(1,0,0);
-            break;
-        case 'e':
-            engine.viewTransform.rotate(0,degToRad(-1),0);
-            engine.lightTransform.rotate(0,degToRad(-1),0);
-            break;
-        case 'q':
-            engine.viewTransform.rotate(0,degToRad(1),0);
-            engine.lightTransform.rotate(0,degToRad(1),0);
-            break;
-
-        default:
-            break;
-    }
-
-    console.log(engine.viewTransform.getPosition());
-};
