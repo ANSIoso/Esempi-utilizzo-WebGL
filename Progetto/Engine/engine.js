@@ -537,7 +537,7 @@ class Engine {
 
         this.obj["terreno"] = await this.loadGeneralObj('../../models_blender/grass_slab/grass_slab.obj');
 
-        this.obj["gatto"] = await this.loadGeneralObj('../../models/cat/12221_Cat_v1_l3.obj');
+        this.obj["fantasma"] = await this.loadGeneralObj('../../models_blender/fantasma/fantasma.obj');
 
         for (let index = 1; index <= 5; index++) {
             let treeName = "albero" + index;
