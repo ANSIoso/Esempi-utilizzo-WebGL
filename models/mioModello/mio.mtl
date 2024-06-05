@@ -1,0 +1,34 @@
+# Blender 4.1.1 MTL File: 'mio.blend'
+# www.blender.org
+
+newmtl Materiale
+Ns 10.000005
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.200000 0.200000 0.200000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Bump -bm 1.000000 C:/Users/anton/Desktop/uni/UniBo/Computer Graphics/Esempi-utilizzo-WebGL/models_blender/rocce/slab_normal.jpg
+
+newmtl ferro
+Ns 640.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.800000 0.800000 0.800000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 3
+map_Kd Metal_Damaged_001_basecolor.jpg
+map_Bump -bm 1.000000 Metal_Damaged_001_normal.jpg
+
+newmtl material_0.001
+Ns 0.999999
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Kd textured_output.jpg

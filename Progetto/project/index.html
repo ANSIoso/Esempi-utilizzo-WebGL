@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+
+	<link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+	<div id="gameDiv" class="container">
+		<canvas id="canvas" class="monitor"></canvas>
+		<canvas id="uiCanvas" class="monitor"></canvas>
+
+		<div class="controls" id="upControls">
+			<p>
+				<button id="fullScreen-btn" class="controlsButton"><i class="fa-solid fa-expand"></i></button>
+			</p>
+		</div>
+
+		<div class="controls" id="leftControls">
+			<p class="controlsLine">
+				<button id="straight-btn" class="controlsButton"><i class="fa-solid fa-up-long"></i></button>
+			</p>
+			<p class="controlsLine">
+				<button id="left-btn" class="controlsButton"><i class="fa-solid fa-left-long"></i></button>
+				<button id="back-btn" class="controlsButton"><i class="fa-solid fa-down-long"></i></button>
+				<button id="right-btn" class="controlsButton"><i class="fa-solid fa-right-long"></i></button>
+			</p>
+		</div>
+
+		<div class="controls" id="rightControls">
+			<p>
+				<button id="run-btn" class="controlsButton"><i class="fa-solid fa-person-running"></i></button>
+			</p>
+			<p>
+				<button id="light-btn" class="controlsButton"><i class="fa-solid fa-lightbulb"></i></button>
+			</p>
+		</div>
+	</div>
+
+	<div id="other">
+		<div id="SettingsDiv">
+			<p class="title">Impostazioni</p>
+			<div class="setting-line">
+				<div class="checkbox-wrapper-8">
+					<input class="tgl tgl-skewed" id="Specular-set" type="checkbox" checked>
+					<label class="tgl-btn" data-tg-off="OFF" data-tg-on="ON" for="Specular-set"></label>
+				</div>
+				<p>Specular</p>
+			</div>
+
+			<div class="setting-line">
+				<div class="checkbox-wrapper-8">
+					<input class="tgl tgl-skewed" id="NormalMaps-set" type="checkbox" checked>
+					<label class="tgl-btn" data-tg-off="OFF" data-tg-on="ON" for="NormalMaps-set"></label>
+				</div>
+				<p>NormalMaps</p>
+			</div>
+
+			<div class="setting-line">
+				<div class="checkbox-wrapper-8">
+					<input class="tgl tgl-skewed" id="Shadows-set" type="checkbox" checked>
+					<label class="tgl-btn" data-tg-off="OFF" data-tg-on="ON" for="Shadows-set"></label>
+				</div>
+				<p>Shadows</p>
+			</div>
+
+			<div class="setting-line">
+				<div class="checkbox-wrapper-8">
+					<input class="tgl tgl-skewed" id="Shading-set" type="checkbox" checked>
+					<label class="tgl-btn" data-tg-off="OFF" data-tg-on="ON" for="Shading-set"></label>
+				</div>
+				<p>Shading</p>
+			</div>
+
+			<div class="setting-line">
+				<div class="checkbox-wrapper-8">
+					<input class="tgl tgl-skewed" id="Audio-set" type="checkbox">
+					<label class="tgl-btn" data-tg-off="OFF" data-tg-on="ON" for="Audio-set"></label>
+				</div>
+				<p>Audio</p>
+			</div>
+		</div>
+
+		<div id="info-div">
+			<p class="title">Comandi</p>
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-up-long"></i>
+					<p>/</p>
+					<p class="key-btn">W</p>
+				</div>
+				<p>avanti</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-down-long"></i>
+					<p>/</p>
+					<p class="key-btn">S</p>
+				</div>
+				<p>indietro</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-left-long"></i>
+					<p>/</p>
+					<p class="key-btn">A</p>
+				</div>
+				<p>sinistra</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-right-long"></i>
+					<p>/</p> 
+					<p class="key-btn">D</p>
+				</div>
+				<p>destra</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-person-running"></i>
+					<p>/</p> 
+					<p class="key-btn">Shift</p>
+				</div>
+				<p>corsa</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-lightbulb"></i>
+					<p>/</p> 
+					<p class="key-btn">Click mouse</p>
+				</div>
+				<p>torcia</p>
+			</div>
+
+			<div>
+				<div class="infoButton">
+					<i class="fa-solid fa-expand"></i>
+					<p>/</p>
+					<p class="key-btn">F</p>
+				</div>
+				<p>schermo intero</p>
+			</div>
+
+		</div>
+	</div>
+
+
+	<script src="https://kit.fontawesome.com/06d84ce8cf.js" crossorigin="anonymous"></script>
+
+	<script id="3d-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+		attribute vec2 a_texcoord;
+		attribute vec3 a_normal;
+
+		uniform vec3 u_lightWorldPosition;
+		uniform vec3 u_viewWorldPosition;
+
+		uniform mat4 u_projection;
+		uniform mat4 u_view;
+		uniform mat4 u_world;
+		uniform mat4 u_textureMatrix;
+		
+		
+		varying vec2 v_texcoord;
+		varying vec4 v_projectedTexcoord;
+		varying vec3 v_normal;
+		
+		varying vec3 v_surfaceToLight;
+		varying vec3 v_surfaceToView;
+		
+		// normale
+		attribute vec3 a_tangent;
+		attribute vec4 a_color;
+
+		varying vec3 v_tangent;
+		varying vec4 v_color;
+
+
+		void main() {
+			vec4 worldPosition = u_world * a_position;
+
+			gl_Position = u_projection * u_view * worldPosition;
+
+			v_texcoord = a_texcoord;
+			
+			v_projectedTexcoord = u_textureMatrix * worldPosition;
+			
+			mat3 normalMat = mat3(u_world);
+			v_normal = normalize(normalMat * a_normal);
+			
+			v_surfaceToLight = u_lightWorldPosition - worldPosition.xyz;
+			v_surfaceToView = u_viewWorldPosition - worldPosition.xyz;
+			
+			v_tangent = normalize(normalMat * a_tangent);
+
+			v_color = a_color;
+		}
+    </script>
+
+	<script id="3d-fragment-shader" type="x-shader/x-fragment">
+		precision highp float;
+
+		// settaggi shader
+		uniform float u_enableSpecular;
+		uniform float u_enableNormalMaps;
+		uniform float u_enableShadows;
+		uniform float u_enableShading;
+
+		uniform float u_lightPower;
+		
+		varying vec2 v_texcoord;
+		varying vec4 v_projectedTexcoord;
+		varying vec3 v_normal;
+		varying vec3 v_surfaceToLight;
+		varying vec3 v_surfaceToView;
+
+		varying vec3 v_tangent;
+		
+		varying vec4 v_color; 				// u_colorMult
+		uniform sampler2D diffuseMap; 		// u_texture
+		uniform sampler2D u_projectedTexture;
+		uniform float u_bias;
+		uniform float shininess;
+		uniform vec3 u_lightDirection;
+		uniform float u_innerLimit;       	// in dot space
+		uniform float u_outerLimit;         // in dot space
+
+		uniform vec3 diffuse;
+		uniform vec3 ambient;
+		uniform vec3 emissive;
+		uniform vec3 specular;
+		uniform sampler2D specularMap;
+		uniform sampler2D normalMap;
+		uniform float opacity;
+
+		void main () {
+			// interpolazione normali per shading
+			vec3 normal = normalize(v_normal) * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
+			
+			// CODEICE PER LE NORMAL MAP
+			// se i settaggi lo richiedono ricalcolo le normali basandomi sulla normal map
+			if (u_enableNormalMaps > 0.5){
+				vec3 tangent = normalize(v_tangent) * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
+				vec3 bitangent = normalize(cross(normal, tangent));
+				
+				mat3 tbn = mat3(tangent, bitangent, normal);
+				normal = texture2D(normalMap, v_texcoord).rgb * 2. - 1.;
+				normal = normalize(tbn * normal);
+			}
+
+			vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+
+			vec4 diffuseMapColor = texture2D(diffuseMap, v_texcoord);
+			vec3 effectiveDiffuse = diffuse * diffuseMapColor.rgb * v_color.rgb;
+			float effectiveOpacity = opacity * diffuseMapColor.a * v_color.a;
+
+
+			float dotFromDirection = dot(surfaceToLightDirection,
+                               -u_lightDirection);
+			float limitRange = u_innerLimit - u_outerLimit;
+			float inLight = clamp((dotFromDirection - u_outerLimit) / limitRange, 0.05, u_lightPower); 	// |modificare qui per indicare
+																										// |oscurità fuori dal cono di luce
+			float light;
+			if(u_enableShading > 0.5)
+				light = inLight * dot(normal, surfaceToLightDirection);
+			else
+				light = inLight * 1.0;
+			
+			
+			// CODICE PER LE OMBRE
+			// setto a tutti i pixel un valore di "luce ricevuta" pari a 1 
+			float shadowLight = 1.0;
+			// se i settaggi lo richiedono calcolo se un determinato pixel è in ombra 
+			// impostando quindi un valore di "luce ricevuta" minore
+			if (u_enableShadows > 0.5){
+				vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
+				float currentDepth = projectedTexcoord.z + u_bias;
+				
+				bool inRange = 
+					projectedTexcoord.x >= 0.0 &&
+					projectedTexcoord.x <= 1.0 &&
+					projectedTexcoord.y >= 0.0 &&
+					projectedTexcoord.y <= 1.0;
+
+				float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
+				shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.1 : 1.0;  // modificare qui per indicare
+																						// oscurità ombra oggerri
+			}
+
+			// CODICE PER LUCE SPECULARE
+			// setto a tutti i pixel un valore di "luce riflessa" pari a 0
+			vec3 pixelSpecularValue = vec3(0.0, 0.0, 0.0);
+			// se i settaggi lo richiedono calcolo la suce il pixel va a riflettere
+			if (u_enableSpecular > 0.5){
+				vec3 surfaceToViewDirection = normalize(v_surfaceToView);
+				vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+				float specularLight = clamp(dot(normal, halfVector), 0.0, 1.0);
+				vec4 specularMapColor = texture2D(specularMap, v_texcoord);
+				vec3 effectiveSpecular = specular * specularMapColor.rgb;
+				pixelSpecularValue = effectiveSpecular * inLight * pow(specularLight, shininess);
+			}
+			
+			gl_FragColor = vec4(
+				emissive +
+				effectiveDiffuse * light  * shadowLight+
+				pixelSpecularValue * shadowLight,
+				effectiveOpacity);
+		}
+	</script>
+
+
+	<!-- v_ shadow map shader _v -->
+
+	<script id="color-vertex-shader" type="x-shader/x-vertex">
+		attribute vec4 a_position;
+		
+		uniform mat4 u_projection;
+		uniform mat4 u_view;
+		uniform mat4 u_world;
+		
+		void main() {
+		  // Multiply the position by the matrices.
+		  gl_Position = u_projection * u_view * u_world * a_position;
+		}
+	</script>
+
+	<script id="color-fragment-shader" type="x-shader/x-fragment">
+		precision mediump float;
+		
+		uniform vec4 u_color;
+		void main() {
+		  gl_FragColor = u_color;
+		}
+	</script>
+
+	<!-- v_ skybox shader _v -->
+
+	<script id="skybox-vertex-shader" type="x-shader/x-vertex">
+		attribute vec4 a_position;
+		varying vec4 v_position;
+		
+		void main() {
+		  v_position = a_position;
+		  gl_Position = a_position;
+		  gl_Position.z = 1.0;
+		}
+	</script>
+
+	<script id="skybox-fragment-shader" type="x-shader/x-fragment">
+		precision mediump float;
+		
+		uniform samplerCube u_skybox;
+		uniform mat4 u_viewDirectionProjectionInverse;
+		
+		varying vec4 v_position;
+		void main() {
+		  vec4 t = u_viewDirectionProjectionInverse * v_position;
+		  gl_FragColor = textureCube(u_skybox, normalize(t.xyz / t.w));
+		}
+	</script>
+
+	<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+	<script src="https://webglfundamentals.org/webgl/resources/m4.js"></script>
+
+	<!-- model -->
+	<script src="Model/utils.js"></script>
+	<script src="Model/mashTrasformers.js"></script>
+	<script src="Model/game.js"></script>
+
+	<!-- engine -->
+	<script src="Engine/textureHelpers.js"></script>
+	<script src="Engine/objParsers.js"></script>
+	<script src="Engine/engine.js"></script>
+
+	<!-- controller -->
+	<script src="Controller/engineController.js"></script>
+	<script src="Controller/audioController.js"></script>
+	<script src="Controller/playerController.js"></script>
+
+</body>
+
+</html>

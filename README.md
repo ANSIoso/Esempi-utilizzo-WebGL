@@ -1,2 +1,0 @@
-# Esempi-utilizzo-WebGL
- 

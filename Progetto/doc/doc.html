@@ -1,0 +1,240 @@
+<style>
+    html {
+        background-color: rgb(54, 53, 53);
+        font-family: sans-serif;
+
+        font-size: large;
+    }
+
+    .title {
+        color: #d6d1d1;
+    }
+
+    .center-text {
+        text-align: center;
+    }
+
+    .section {
+        background-color: rgb(51, 50, 50);
+
+        padding: 2px 15px;
+        margin: 50px;
+    }
+
+    .img-center {
+        display: block;
+
+        margin: 30px auto;
+
+        width: 60%;
+
+        border: 2px #d6d1d1 dashed;
+    }
+
+    .section i{
+        color: #737070;
+        padding: 0 3px;
+    }
+</style>
+
+<h1 class="title center-text">Relazione Progetto Computer Graphics</h1>
+<h2 class="title center-text">Antonio Sisinni - matricola</h2>
+
+
+
+<div class="section">
+    <h3 class="title">Introduzione</h3>
+
+    <p>
+        Questo progetto è stato creato per il corso di computer Graphics, l'obbiettivo di questo progetto è quello di
+        padroneggiare l'utilizzo di WebGL, un'API JavaScript per il rendering di grafica interattiva 2D e 3D. <br>
+        Nello specifico il progetto va a simulare una camminata all'interno di un bosco infestato da alcune entità, le
+        quali (non appena ci avrenno notato) cercheranno di seguirci.
+    </p>
+</div>
+
+
+
+<div class="section">
+    <h3 class="title">Interfaccia</h3>
+    <p>
+        L'interfaccia è stata studiata per poter essere fruita sia da pc che da dispositivi mobili, e risulta costituita
+        da 3 principali sezioni:
+    </p>
+
+    <ul>
+        <li>
+            <h4>Interfaccia di gioco</h4>
+
+            <div style=" display: flex; flex-direction: row;">
+                <div>
+                    <p>
+                        In questa zona vengono renderizzati i modelli e gli elementi di interfaccia necessari a fruire
+                        della simulazione.
+                    </p>
+                    <img class="img-center" style="width: 80%;" src="doc_img/schermata_gioco_pc.png">
+                </div>
+                <div style="border-left:1px solid #000; margin: 20px;"></div>
+                <div>
+                    <p>
+                        Nel caso in cui si dovesse avviare il profetto da dispositivo mobile tale zona sarà arricchia da
+                        una
+                        serie di pulsanti utili per poterlo utilizzare anche senza l'ausilio della tastiera
+                    </p>
+                    <img class="img-center" style="width: 80%;" src="doc_img/schermata_gioco_mobile.png" alt="">
+                </div>
+            </div>
+        </li>
+        <li>
+            <h4>Impostazioni </h4>
+            All'interno di questa sezione sarà possibile modificare alcuni parametri del progetto, per esempio
+            attivare/disattivare l'audio oppure
+            modificando gli effetti da incudere nel rendering della scena.
+            <img class="img-center" src="doc_img/impostazioni.png">
+        </li>
+        <li>
+            <h4>Informazioni sul gioco</h4>
+            <div style="display: flex; flex-direction: row;">
+                <img class="img-center" src="doc_img/informazioni.png">
+                <div style="margin: 20px;"></div>
+                <div style="margin: 30px auto;">
+                    In questa sezione è riportata la lista dei comandi per interagire con la simulazione affiancando
+                    l'azione con l'imput corrispondere da pc e mobile. <br><br>
+
+                    <h4>informazioni aggiuntive</h4>
+                    <ul>
+                        <li>La barra in'alto indica la "resistenza" del giocatore, se essa viene svuotata tutta il
+                            giocatore non potrà correre
+                            fino quando essa non si sarà rigenerata almeno in parte</li>
+                        <br>
+                        <li>Mantenendo la torcia accesa le entità riusciranno a notare il giocatore da più lontano</li>
+                    </ul>
+                </div>
+            </div>
+        </li>
+    </ul>
+</div>
+
+
+
+<div class="section">
+    <h3 class="title">rendering</h3>
+    Come visto nella sezione delle impostazioni è possibile influire sul rendering della scena, lo SHADER che arbitra il
+    rendering incude diversi effetti:
+
+    <ul>
+        <li>
+            <h4>Base</h4>
+            senza attivare nessun effetto i modelli saranno caricati a schermo caratterizzati solo dalla
+            loro geometria, il loro colore di base e (nel caso sia previsto) la loro texture.
+            <img class="img-center" src="doc_img/base.png">
+        </li>
+        <li>
+            <h4>Shading</h4>
+            attivando tale effetto la normale delle "faccette" che compongono i vari modelli sarà
+            utilizzata per rappresentare come tale porzione (le faccette) dell'oggetto reagiscono alla luce.
+            <img class="img-center" src="doc_img/shading.png">
+        </li>
+        <li>
+            <h4>Shadows</h4> <i style="color: #d6d1d1;">Rendering avanzato</i>
+            attivando tale effetto saranno renderizzate le obre proiettate dagli oggetti che si trovano davanti alla
+            luce,
+            per implementare tale effetto si è fatto utilizzo della tecnica dello "Shadow Buffer"
+            <img class="img-center" src="doc_img/shadows.png">
+        </li>
+        <li>
+            <h4>Normal Maps</h4> <i style="color: #d6d1d1;">Rendering avanzato</i>
+            attivando tale opzione i modelli dotati di tale "Normal Map" saranno arricchiti di dettagli, in questa
+            tecnica
+            vengono utilizzate alcune speciali texture aggiuntive (chiamate per l'appunto "Normal Map") in esse i valori
+            dei canali "rgb" di ogni pixel
+            viene utilizzato per modifica le coordinate "xyz" della normale in quel punto corrispondente sull'oggetto.
+            <img class="img-center" src="doc_img/normalMaps.png">
+        </li>
+        <li>
+            <h4>Reflections</h4> <i style="color: #d6d1d1;">Rendering avanzato</i>
+            attivando tale opzione per illuminare un oggetto si tierra conto della posizione della luce e del punto di
+            vista dell'osservatore
+            in modo da rendere più realistica l'illuminazione di un oggetto aggiungendo all'illuminazione diffusa quella
+            speculare.
+            <img class="img-center" src="doc_img/reflection.png">
+        </li>
+    </ul>
+</div>
+
+
+
+<div class="section">
+    <h3 class="title">Struttura</h3>
+
+    I file del progetto sono organizzati come segue:
+
+    <ul>
+        <li><b>assets</b>: cartella che contiene tutte le risorse utilizzate dal codice
+            <ul>
+                <br>
+                <li><i>audio</i>: include tutte le tracce audio utilizzate per ricreare i suoni all'interno della
+                    simulazione</li>
+                <br>
+                <li><i>modelsOBJ</i>: include i file .obj che rappresentano le geometrie delle mesh renderizzate, i file
+                    .mtl che contengono le informazioni sui materiali di tali mesh, le immagini utilizzate per
+                    texturizzare tali mesh e le normal map</li>
+                <br>
+                <li><i>skybox</i>: include le immagini utilizzate per texturizzare la skybox</li>
+                <br>
+            </ul>
+        </li>
+        <li><b>Controller</b>: cartella che contiene le strutture dati utilizzate per "impartire ordini"
+            <ul>
+                <br>
+                <li><i>audioController.js</i>: utilizzato per regolare la riproduzione dei suoni</li>
+                <br>
+                <li><i>engineController.js</i>: utilizzato per gestire gli input e specificare i settaggi verso l'engine
+                </li>
+                <br>
+                <li><i>playerController.js</i>: utilizzato per gestire gli input del giocatore nella simulazione</li>
+                <br>
+            </ul>
+        </li>
+        <li><b>Engine</b>: cartella che contiene le strutture dati responsabili della gestione delle mesh e del loro
+            rendering
+            <ul>
+                <br>
+                <li><i>engine.js</i>: classe che si occupa dell'effettivo rendering a schermo delle mesh</li>
+                <br>
+                <li><i>objParser.js</i>: metodi utilizzati per la lettura dei file che rappresentano le mesh</li>
+                <br>
+                <li><i>textureHelpers.js</i>: metodi utilizzati per la creazione delle texture</li>
+                <br>
+            </ul>
+        </li>
+        <li><b>Model</b>: cartella che contiene le strutture dati che definiscono la logica della simulazione
+            <ul>
+                <br>
+                <li><i>game.js</i>: classe che definisce la dinamica della simulazione (es. comportamento delle entità,
+                    collisioni con gli oggetti, movimenti, ecc.)</li>
+                <br>
+                <li><i>meshTransformers.js</i>: classi utilizzate per gestire le trasformazioni dei riferimenti spaziali
+                    all'interno della simulazione</li>
+                <br>
+                <li><i>utils.js</i>: metodi di utilità per la logica della simulazione</li>
+                <br>
+            </ul>
+        </li>
+        <li><i>Index.css</i>: contiene le indicazioni sullo stile dell'interfaccia principale</li>
+        <li><i>Index.html</i>: contiene le indicazioni sulla struttura dell'interfaccia principale e il codice degli shader
+            program</li>
+    </ul>
+
+    Tutte le mesh utilizzate sono state scaricate da internet e successivamente modificate in Blender per amalgamarsi
+    meglio allo stile del progetto, eccezione fatta per "mioTotem", il quale è stato interamente creato in Blender
+    utilizzando una scansione 3D del mio volto.
+
+</div>
+
+
+
+<div class="section">
+    <h3 class="title">Demo</h3>
+
+</div>

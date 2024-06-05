@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <!--per ricaricare sempre la pagina da zero e non usare la cache-->
+    <!-- <META HTTP-EQUIV=”Pragma” CONTENT=”no-cache”>-->
+    <!--<META HTTP-EQUIV=”Cache-Control” CONTENT=”no-cache”>-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no" />
+        <!--per definire la dimensione e posizione dell'elemento canvas;
+        se i valori di width ed height inpostati qui sono superiori a
+        corrispondenti settati in <canvas width= .. height=.. l'immagine
+        verra' adattata ingrandendola, mentre se i valori sono inferiori,
+        l'immagine verra' adattata rimpicciolendola-->
+    <style>
+      body {
+        background: #dddddd;
+      }
+        #mycanvas {
+        /* margin: 10px;*/
+          background: #ffffff;
+          padding: 3px;
+          border: thin inset #aaaaaa;
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .canvas_container { /*to manage text on canvas and webgl */
+          position: relative;
+          display: flex;
+          float: right;
+	        width: 35%;
+	        height: 65%;
+	        margin-top: 5%;
+	        margin-right: 35%;
+        }
+    </style>
+   </head>
+
+<body>
+  <div id= "canvas_container" class="canvas_container">
+    <canvas width="500" height="500" id="mycanvas"></canvas>
+  </div>
+
+<script id="vertex-shader" type="not-javascript">
+attribute vec3 position;
+uniform mat4 Pmatrix; 
+uniform mat4 Vmatrix;
+uniform mat4 Mmatrix;
+attribute vec3 color;//the color of the point 
+varying vec3 vColor;
+void main(void) { //pre-built function
+  gl_Position = Pmatrix*Vmatrix*Mmatrix*vec4(position, 1.);
+  vColor=color;
+}
+</script>
+
+<script id="fragment-shader" type="not-javascript">
+precision mediump float; 
+varying vec3 vColor;
+void main(void) {
+  gl_FragColor = vec4(vColor, 1.);
+}
+</script>
+
+<script type="text/javascript" src="resources/webgl-utils.js"></script>
+<script type="text/javascript" src="resources/m4.js"></script>
+<script type="text/javascript" src="cg_cube_interact_optical_illusion_touch.js"></script>
+   </body>
+</html>  

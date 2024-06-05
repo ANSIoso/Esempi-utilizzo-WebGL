@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        body{
+            background-color: rgb(48, 47, 47);
+        }
+
+        canvas{
+            background-color: rgb(43, 42, 42);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="400" height="400">
+
+    </canvas>
+
+    <p>
+        x_transl
+        <input id="x_transl" type="range" min="-1" max="1" step="0.1" value="0">
+    </p>
+
+    <p>
+        y_transl
+        <input id="y_transl" type="range" min="-1" max="1" step="0.1" value="0">
+    </p>
+
+    <p>
+        rotation
+        <input id="rotation" type="range" min="0" max="360" step="0.1" value="0">
+    </p>
+
+    <p>
+        x_scale
+        <input id="x_scale" type="range" min="-2" max="3" step="0.1" value="1">
+    </p>
+
+    <p>
+        y_scale
+        <input id="y_scale" type="range" min="-2" max="3" step="0.1" value="1">
+    </p>
+
+    <script id="vertex-shader" type="not-javascript">
+        attribute vec3 vertexPosition;
+
+        uniform mat4 u_transformMatrix;
+
+        void main(void) {
+            vec3 position = (u_transformMatrix * vec4(vertexPosition, 1)).xyz;
+
+            gl_Position = vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="fragment-shader" type="not-javascript">
+        precision mediump float;
+
+        void main(void) {
+            gl_FragColor = vec4(1, 0, 0.5, 1);
+        }
+    </script>
+
+    <script src="resources/webgl-utils.js"></script>
+    <script src="resources/m4.js"></script>
+    <script src="trasformazioni_matrici.js"></script>
+</body>
+</html>
